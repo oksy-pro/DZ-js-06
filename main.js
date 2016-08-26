@@ -1,75 +1,78 @@
-/* lesson 05 - Stop Watch Timer */
+/* lesson 06 - Stop-Split Watch Timer */
+/* more precision,
+  based on code:
+  http://stopwatch.onlineclock.net/new/
+  http://codereview.stackexchange.com/questions/45335/milliseconds-to-time-string-time-string-to-milliseconds
+*/
 
 (function() {
 
-  /* timer resolution, msec */
-  var RESOLUTION = 25;
+  var buttons = document.querySelectorAll('input'),
+      startButton = buttons[0],
+      splitButton = buttons[1],
+      resetButton = buttons[2],
+      startTime,
+      timerId,
+      commitIndex;
 
-  var time_units = [
-    { now: 0, delta: RESOLUTION,  limit: 999, display: msecDisplay },
-    { now: 0, delta: 1, limit: 59, display: secDisplay },
-    { now: 0, delta: 1, limit: 59, display: minDisplay },
-    { now: 0, delta: 1, limit: 23, display: hourDisplay }
-  ];
-
-  time_units.forEach(function(unit) {
-    // calculate number of unit chars
-    unit.len = unit.limit.toString().length;
-  });
-
-  var TIME_UNITS_LENGTH = time_units.length;
-  var start = false;
-  var timerId;
-  var commitIndex = 0;
-
-  stopwatch__startButton.onclick = function(e) {
-    start = !start;
-    if (start) {
-      timerId = setInterval(performTimeUnit, RESOLUTION, 0);
-      stopwatch__startButton.value = 'Stop';
-    } else {
-      clearInterval(timerId);
-      commitTime(e.target.value);
-      stopwatch__startButton.value = 'Start';
+  for (var i = 0; i < buttons.length; i++) {
+    buttons[i].onfocus = function() {
+      this.blur();
     }
   }
 
-  stopwatch__splitButton.onclick = function(e) {
-    if (start) commitTime(e.target.value);
+  initTimer();
+
+  startButton.onclick = function(e) {
+    if (startTime <= 0) {
+      startTime += Date.now();
+      timerId = setInterval(function() {
+        msToDisplay(Date.now() - startTime);
+      }, 43);
+      this.value = 'Stop';
+    } else {
+      commitTime(e.target.value);
+      startTime -= Date.now();
+      clearInterval(timerId);
+      this.value = 'Start';
+    }
   }
 
-  stopwatch__resetButton.onclick = function() {
-    start = false;
+  splitButton.onclick = function(e) {
+    if (startTime > 0) commitTime(e.target.value);
+  }
+
+  resetButton.onclick = initTimer;
+
+  function initTimer() {
+    startTime = 0;
     commitIndex = 0;
-    stopwatch__startButton.value = 'Start';
     clearInterval(timerId);
+    startButton.value = 'Start';
+    msToDisplay(0);
     while(stopwatch__results.firstChild) {
       stopwatch__results.removeChild(stopwatch__results.firstChild);
     }
-    time_units.forEach(function(unit) {
-      unit.now = unit.limit;
-    });
-    performTimeUnit(0);
   }
 
-  function performTimeUnit(step) {
-    var unit = time_units[step];
-    unit.now += unit.delta;
-    if (unit.now > unit.limit) {
-      unit.now = 0;
-      if (step < TIME_UNITS_LENGTH - 1) performTimeUnit(++step);
-    }
-    unit.display.textContent = addZero(unit.now, unit.len);
+  function msToDisplay(ms) {
+    stopwatch__display.textContent = ms2String(ms);
   }
 
-  function addZero(num, len) {
-    num = num.toString();
-    while(num.length < len) num = '0' + num;
-    return num;
+  function ms2String(raw) {
+    var ms = raw % 1000,
+        sec = raw / 1000 % 60 | 0,
+        min = raw / 60000 % 60 | 0,
+        hour = raw / 3600000 % 24 | 0;
+    return (hour < 10 ? '0' + hour : hour) + ':' +
+      (min < 10 ? '0' + min : min) + ':' +
+      (sec < 10 ? '0' + sec : sec) + '.' +
+      (ms < 100 ? ms < 10 ? '00' : '0' : '') + ms;
   }
 
   function commitTime(prefix) {
     var s = ++commitIndex + ' ' + prefix + ': ' + stopwatch__display.textContent;
+    // var s = ++commitIndex + ' ' + prefix + ': ' + ms2String(Date.now() - startTime);
     stopwatch__results.appendChild(document.createTextNode(s));
     stopwatch__results.appendChild(document.createElement('br'));
   }
